@@ -10,7 +10,7 @@ RUN --mount=type=cache,target=~/AppData/Local/Yarn/Cache/v4 \
     --mount=type=bind,source=packages/server/package.json,target=packages/server/package.json \
     --mount=type=bind,source=yarn.lock,target=yarn.lock \
     yarn install --frozen-lockfile --non-interactive --ignore-scripts \
-    && yarn upgrade bcrypt --frozen-lockfile --non-interactive
+    && yarn upgrade bcryptjs --frozen-lockfile --non-interactive
 
 COPY --chown=app:app ./package.json ./lerna.json ./jest.config.json ./
 

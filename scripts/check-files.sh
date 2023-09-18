@@ -9,16 +9,21 @@ if [[ "$package" == "$DATABASE" ]]; then
 fi
 
 if [[ "$EVENT_NAME" == 'pull_request' ]]; then
-  echo "checkRes=$(git diff --name-only -r HEAD^1 HEAD | xargs)" >$TEMP_FILE
+  diffRes=$(git diff --name-only -r HEAD^1 HEAD | xargs)
 else
-  echo "checkRes=$(git diff --name-only $EVENT_BEFORE $EVENT_AFTER | xargs)" >$TEMP_FILE
+  if [[ "$GITHUB_REF" == "$BRANCH_DEV" ]]; then
+    diffRes=$(git diff --name-only $EVENT_BEFORE $EVENT_AFTER | xargs)
+  else
+    diffRes=$(git diff --name-only origin/dev $EVENT_AFTER | xargs)
+  fi
 fi
 
-git diff --name-only $EVENT_BEFORE $EVENT_AFTER >$TEMP_FILE
+echo "$diffRes" >$TEMP_FILE
+
 while IFS= read -r file; do
   checkRes=$(echo "$file" | grep "$PACKAGES_ROOT$package/")
   if [[ $checkRes ]]; then
-    echo "Changed files found since $BRANCH_DEV"
+    echo "Changed files found since $BRANCH_DEV:"
     echo "$checkRes"
     echo "::set-output name=delta::true"
     break

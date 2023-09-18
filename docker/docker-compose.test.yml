@@ -19,6 +19,8 @@ services:
       dockerfile: docker/configs/server/Dockerfile.test
     environment:
       NODE_ENV: test
+      SPECS_DATA_AMOUNT: ${SPECS_DATA_AMOUNT}
+      SPECS_HOOK_TIMEOUT_MS: ${SPECS_HOOK_TIMEOUT_MS}
     image: m20a20x/games:server
     container_name: server-test
     command: yarn test:quick server
@@ -31,6 +33,8 @@ services:
       dockerfile: docker/configs/client/Dockerfile.test
     environment:
       NODE_ENV: test
+      SPECS_DATA_AMOUNT: ${SPECS_DATA_AMOUNT}
+      SPECS_HOOK_TIMEOUT_MS: ${SPECS_HOOK_TIMEOUT_MS}
     image: m20a20x/games:client
     container_name: client-test
     command: yarn test:quick client

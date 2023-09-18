@@ -3,40 +3,42 @@ name: Client CI/CD
 on:
   workflow_dispatch:
   push:
-    branches: [ 'master', 'dev' ]
+    branches: [ 'master', 'dev', 'test' ]
+  #    branches: [ 'master', 'dev' ]
   pull_request:
     branches: [ 'master', 'dev' ]
 
 env:
-  GITHUB_REF: ${{ github.ref }}
-  BRANCH_DEV: ${{ vars.BRANCH_DEV }}
   CLIENT_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:client
-  CLIENT_IP: ${{ vars.CLIENT_IP }}
-  CONNECTION_CHECK_INTERVAL_MS: ${{ vars.CONNECTION_CHECK_INTERVAL_MS }}
-  DATABASE_IP: ${{ vars.DATABASE_IP }}
-  DATABASE_NAME: ${{ vars.DATABASE_NAME }}
-  DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-  DATABASE_PASSWORD_SALT: ${{ secrets.DATABASE_PASSWORD_SALT }}
-  DATABASE_PORT: ${{ vars.DATABASE_PORT }}
-  DATABASE_USERNAME: ${{ secrets.DATABASE_USERNAME }}
+
+  # Common
+  BRANCH_DEV: ${{ vars.BRANCH_DEV }}
+  GITHUB_REF: ${{ github.ref }}
+
+  SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
+  SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+
   DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
   DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+
   DOCKER_NETWORK: ${{ vars.DOCKER_NETWORK }}
   DOCKER_NETWORK_GATEWAY: ${{ vars.DOCKER_NETWORK_GATEWAY }}
   DOCKER_NETWORK_IP_RANGE: ${{ vars.DOCKER_NETWORK_IP_RANGE }}
   DOCKER_NETWORK_SUBNET: ${{ vars.DOCKER_NETWORK_SUBNET }}
+
+  CLIENT_IP: ${{ vars.CLIENT_IP }}
+  DATABASE_IP: ${{ vars.DATABASE_IP }}
+  DATABASE_PORT: ${{ vars.DATABASE_PORT }}
   NGINX_PORT: ${{ vars.NGINX_PORT }}
-  SERVER_HOST_HTTP: ${{ secrets.SERVER_HOST_HTTP }}
-  SERVER_HOST_WS: ${{ secrets.SERVER_HOST_WS }}
-  SERVER_IP: ${{ vars.SERVER_IP }}
   SERVER_PORT_HTTP: ${{ vars.SERVER_PORT_HTTP }}
   SERVER_PORT_WS: ${{ vars.SERVER_PORT_WS }}
+  SSH_HOST: ${{ secrets.SSH_HOST }}
+  SSH_PORT: ${{ vars.SSH_PORT }}
+
+  CONNECTION_CHECK_INTERVAL_MS: ${{ vars.CONNECTION_CHECK_INTERVAL_MS }}
   SPECS_DATA_AMOUNT: ${{ vars.SPECS_DATA_AMOUNT }}
   SPECS_HOOK_TIMEOUT_MS: ${{ vars.SPECS_HOOK_TIMEOUT_MS }}
-  SSH_HOST: ${{ secrets.SSH_HOST }}
-  SSH_PASSWORD: ${{ secrets.SSH_PASSWORD }}
-  SSH_PORT: ${{ vars.SSH_PORT }}
-  SSH_USERNAME: ${{ secrets.SSH_USERNAME }}
+
 jobs:
   check:
     name: Check files
@@ -62,7 +64,7 @@ jobs:
     name: Client CI
     runs-on: ubuntu-latest
     needs: check
-    if: needs.check.outputs.delta == 'true'
+#    if: needs.check.outputs.delta == 'true'
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -89,7 +91,7 @@ jobs:
   cd:
     name: Client CD
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master'
+#    if: github.ref == 'refs/heads/master'
     needs: ci
     steps:
       - name: Checkout
@@ -112,15 +114,19 @@ jobs:
       - name: Pull and run client image on remote host
         uses: appleboy/ssh-action@v1.0.0
         env:
-          CLIENT_CONTAINER: client
           CLIENT_IMAGE: ${{ secrets.DOCKERHUB_USERNAME }}/${{ github.event.repository.name }}:client
-          CLIENT_IP: ${{ vars.CLIENT_IP }}
-          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
-          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          CLIENT_CONTAINER: client
+
           DOCKER_NETWORK: ${{ vars.DOCKER_NETWORK }}
+          DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKERHUB_PASSWORD: ${{ secrets.DOCKERHUB_PASSWORD }}
+
+          SERVER_HOST_HTTP: ${{ secrets.SERVER_HOST_HTTP }}
+          SERVER_HOST_WS: ${{ secrets.SERVER_HOST_WS }}
+
+          CLIENT_IP: ${{ vars.CLIENT_IP }}
           NGINX_PORT: ${{ vars.NGINX_PORT }}
           SERVER_IP: ${{ vars.SERVER_IP }}
-          SERVER_PORT_HTTP: ${{ vars.SERVER_PORT_HTTP }}
           SERVER_PORT_WS: ${{ vars.SERVER_PORT_WS }}
         with:
           host: $SSH_HOST
@@ -128,35 +134,43 @@ jobs:
           username: $SSH_USERNAME
           password: $SSH_PASSWORD
           envs:
-            CLIENT_CONTAINER,
             CLIENT_IMAGE,
-            CLIENT_IMAGE_PROD,
+            CLIENT_CONTAINER,
+            
+            DOCKER_NETWORK,
             DOCKERHUB_PASSWORD,
             DOCKERHUB_USERNAME,
-            DOCKER_NETWORK,
-            NGINX_PORT,
-            NODE_ENV,
-            OLD_IMAGE,
-            SERVER_IP,
+            
+            SERVER_HOST_HTTP,
+            SERVER_HOST_WS,
+            
             CLIENT_IP,
-            SERVER_PORT_HTTP,
-            SERVER_PORT_WS
+            NGINX_PORT,
+            SERVER_IP,
+            SERVER_PORT_WS,
+            
+            NODE_ENV,
+            CLIENT_IMAGE_PROD,
+            OLD_IMAGE
           script: |
             set -e
             export CLIENT_CONTAINER=$CLIENT_CONTAINER
             export CLIENT_IMAGE=$CLIENT_IMAGE
-            export CLIENT_IMAGE_PROD="${CLIENT_IMAGE}-prod"
-            export CLIENT_IP=$CLIENT_IP
+            
+            export DOCKER_NETWORK=$DOCKER_NETWORK
             export DOCKERHUB_PASSWORD=$DOCKERHUB_PASSWORD
             export DOCKERHUB_USERNAME=$DOCKERHUB_USERNAME
-            export DOCKER_NETWORK=$DOCKER_NETWORK
-            export NGINX_PORT=$NGINX_PORT
-            export NODE_ENV=prod
+            
             export SERVER_HOST_HTTP=$SERVER_HOST_HTTP
             export SERVER_HOST_WS=$SERVER_HOST_WS
+            
+            export CLIENT_IP=$CLIENT_IP
+            export NGINX_PORT=$NGINX_PORT
             export SERVER_IP=$SERVER_IP
-            export SERVER_PORT_HTTP=$SERVER_PORT_HTTP
             export SERVER_PORT_WS=$SERVER_PORT_WS
+            
+            export NODE_ENV=prod
+            export CLIENT_IMAGE_PROD="${CLIENT_IMAGE}-prod"
             export OLD_IMAGE=$(docker images -q $CLIENT_IMAGE_PROD)$(echo "fallback")
             
             echo $DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USERNAME --password-stdin
@@ -177,7 +191,6 @@ jobs:
               --env SERVER_HOST_HTTP \
               --env SERVER_HOST_WS \
               --env SERVER_IP \
-              --env SERVER_PORT_HTTP \
               --env SERVER_PORT_WS \
               $CLIENT_IMAGE_PROD"
             echo $command

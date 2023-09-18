@@ -11,7 +11,7 @@ RUN --mount=type=cache,target=~/AppData/Local/Yarn/Cache/v4 \
     --mount=type=bind,source=yarn.lock,target=yarn.lock \
     yarn install --frozen-lockfile --non-interactive --ignore-scripts --production=true \
     && yarn add lerna -W --dev --frozen-lockfile --non-interactive \
-    && yarn upgrade bcrypt --frozen-lockfile --non-interactive
+    && yarn upgrade bcryptjs --frozen-lockfile --non-interactive
 
 COPY --chown=app:app ./packages/server/src/ ./packages/server/src/
 COPY --chown=app:app ./packages/shared/src*/ ./packages/shared/src/
@@ -24,20 +24,21 @@ RUN --mount=type=cache,target=~/AppData/Local/Yarn/Cache/v4 \
     --mount=type=bind,source=packages/server/package.json,target=packages/server/package.json \
     --mount=type=bind,source=packages/server/tsconfig.json,target=packages/server/tsconfig.json \
     --mount=type=bind,source=packages/server/tsconfig.build.json,target=packages/server/tsconfig.build.json \
-     yarn build --scope=server
+     yarn build server
 
 FROM node:18-alpine
 ARG SERVER_PORT_HTTP
 ARG SERVER_PORT_WS
 WORKDIR /usr/src/app/
 
-COPY --from=base /usr/src/app/packages/server/dist/ ./dist/
+COPY --from=base /usr/src/app/packages/shared/dist/ ./packages/shared/dist/
+COPY --from=base /usr/src/app/packages/server/dist/ ./packages/server/dist/
 COPY --from=base /usr/src/app/node_modules/ ./node_modules/
 
 HEALTHCHECK --interval=30s \
     --timeout=2s \
     --retries=10 \
-    CMD node healthcheck.js
+    CMD node packages/server/dist/healthcheck.js
 
 EXPOSE $SERVER_PORT_HTTP $SERVER_PORT_WS
-CMD ["node", "dist", "index.js"]
+CMD ["node", "packages", "server", "dist", "index.js"]

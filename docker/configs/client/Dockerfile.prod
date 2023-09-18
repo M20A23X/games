@@ -25,13 +25,14 @@ RUN --mount=type=cache,target=~/AppData/Local/Yarn/Cache/v4 \
     --mount=type=bind,source=packages/client/config-overrides.cjs,target=packages/client/config-overrides.cjs \
     --mount=type=bind,source=packages/client/tsconfig.json,target=packages/client/tsconfig.json \
     --mount=type=bind,source=packages/client/.eslintrc.cjs,target=packages/client/.eslintrc.cjs \
-     yarn build --scope=client
+     yarn build client
 
 FROM nginx:1.24.0-alpine
 ARG NGINX_PORT
 WORKDIR /var/www/
 
-COPY --from=base /usr/src/app/packages/client/build/ ./dist/
+COPY --from=base /usr/src/app/packages/shared/dist/ ./packages/shared/dist/
+COPY --from=base /usr/src/app/packages/client/dist/ ./packages/client/dist/
 COPY --from=base /usr/src/app/node_modules/ ./node_modules/
 COPY --chown=app:app ./docker/configs/client/nginx/templates/ /etc/nginx/templates/
 
